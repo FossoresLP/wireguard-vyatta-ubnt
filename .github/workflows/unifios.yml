@@ -87,19 +87,25 @@ jobs:
         run: cd buildroot-2017.11.1 && make wireguard-tools-rebuild # -> output/target/usr/bin/wg
       - name: Build bash
         run: cd buildroot-2017.11.1 && make bash-rebuild # -> output/target/bin/bash
-      - name: Move bash
-        run: cp buildroot-2017.11.1/output/target/bin/bash buildroot-2017.11.1/output/target/usr/bin/
       - name: Build qrencode
         run: cd buildroot-2017.11.1 && make libqrencode-rebuild # -> output/target/usr/bin/qrencode
       - name: Build htop
         run: cd buildroot-2017.11.1 && make htop-rebuild # -> output/target/usr/bin/htop
       - name: Build iftop
         run: cd buildroot-2017.11.1 && make iftop-rebuild # -> output/target/usr/sbin/iftop
+      - name: Collect tools
+        run: |
+          mkdir usr usr/bin usr/sbin
+          cp buildroot-2017.11.1/output/target/usr/bin/wg usr/bin
+          cp buildroot-2017.11.1/output/target/bin/bash usr/bin
+          cp buildroot-2017.11.1/output/target/usr/bin/qrencode usr/bin
+          cp buildroot-2017.11.1/output/target/usr/bin/htop usr/bin
+          cp buildroot-2017.11.1/output/target/usr/sbin/iftop usr/sbin
       - name: Store tools
         uses: actions/upload-artifact@v2
         with:
           name: tools
-          path: buildroot-2017.11.1/output/target/usr
+          path: usr
 
   package:
     needs: [build-modules, build-tools]
@@ -121,13 +127,13 @@ jobs:
       - name: Add setup
         run: cp unifios/setup_wireguard.sh package/
       - name: Add wg-quick
-        run: |
-          curl -o package/usr/bin/wg-quick https://git.zx2c4.com/wireguard-tools/plain/src/wg-quick/linux.bash
-          chmod +x package/usr/bin/wg-quick
+        run: curl -o package/usr/bin/wg-quick https://git.zx2c4.com/wireguard-tools/plain/src/wg-quick/linux.bash
+      - name: Make binaries executable
+        run: chmod +x package/usr/bin/* && chmod +x package/usr/sbin/*
       - name: Package
         run: tar -czf UnifiOS-$MODULE_VERSION.tar.gz package/
       - name: Store package
         uses: actions/upload-artifact@v2
         with:
           name: release_unifios
-          path: UnifiOS-$MODULE_VERSION.tar.gz
+          path: UnifiOS-${{ env.MODULE_VERSION }}.tar.gz

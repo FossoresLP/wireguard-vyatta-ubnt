@@ -5,7 +5,7 @@
 ################################################################################
 
 WIREGUARD_LINUX_COMPAT_VERSION = PACKAGE_VERSION
-WIREGUARD_LINUX_COMPAT_SITE = https://git.zx2c4.com/wireguard-linux-compat/snapshot
+WIREGUARD_LINUX_COMPAT_SITE = package/wireguard-tools
 WIREGUARD_LINUX_COMPAT_SITE_METHOD = file
 WIREGUARD_LINUX_COMPAT_SOURCE = wireguard-linux-compat-$(WIREGUARD_LINUX_COMPAT_VERSION).tar
 WIREGUARD_LINUX_COMPAT_LICENSE = GPL-2.0

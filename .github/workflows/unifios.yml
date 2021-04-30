@@ -25,8 +25,28 @@ jobs:
           cp unifios/buildroot-config.txt buildroot-2017.11.1/.config
           cp unifios/UDM-config.txt buildroot-2017.11.1/.
           cp unifios/kernel-versions.txt buildroot-2017.11.1/.
+      - name: Download WireGuard module source
+        run: |
+          curl -L -o wireguard-linux-compat-$MODULE_VERSION.tar.xz https://git.zx2c4.com/wireguard-linux-compat/snapshot/wireguard-linux-compat-$MODULE_VERSION.tar.xz
+          curl -L -o wireguard-linux-compat-$MODULE_VERSION.tar.asc https://git.zx2c4.com/wireguard-linux-compat/snapshot/wireguard-linux-compat-$MODULE_VERSION.tar.asc
+          unxz wireguard-linux-compat-$MODULE_VERSION.tar.xz
+          gpgv --keyring ci/AB9942E6D4A4CFC3412620A749FC7012A5DE03AE.gpg wireguard-linux-compat-$MODULE_VERSION.tar.asc wireguard-linux-compat-$MODULE_VERSION.tar
+      - name: Download WireGuard tools source
+        run: |
+          curl -L -o wireguard-tools-$TOOLS_VERSION.tar.xz https://git.zx2c4.com/wireguard-tools/snapshot/wireguard-tools-$TOOLS_VERSION.tar.xz
+          curl -L -o wireguard-tools-$TOOLS_VERSION.tar.asc https://git.zx2c4.com/wireguard-tools/snapshot/wireguard-tools-$TOOLS_VERSION.tar.asc
+          unxz wireguard-tools-$TOOLS_VERSION.tar.xz
+          gpgv --keyring ci/AB9942E6D4A4CFC3412620A749FC7012A5DE03AE.gpg wireguard-tools-$TOOLS_VERSION.tar.asc wireguard-tools-$TOOLS_VERSION.tar
       - name: Copy packages
         run: cp -pr unifios/packages/* buildroot-2017.11.1/package
+      - name: Copy WireGuard source
+        run: |
+          cp wireguard-linux-compat-$MODULE_VERSION.tar buildroot-2017.11.1/package/wireguard-linux-compat/
+          cp wireguard-tools-$TOOLS_VERSION.tar buildroot-2017.11.1/package/wireguard-tools/
+      - name: Set package versions
+        run: |
+          sed -i "s/PACKAGE_VERSION/$MODULE_VERSION/g" buildroot-2017.11.1/package/wireguard-linux-compat/wireguard-linux-compat.mk
+          sed -i "s/PACKAGE_VERSION/$TOOLS_VERSION/g" buildroot-2017.11.1/package/wireguard-tools/wireguard-tools.mk
       - name: Patches
         run: |
           patch -p0 <unifios/patches/wireguard-packages.patch

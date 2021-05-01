@@ -5,7 +5,7 @@
 ################################################################################
 
 WIREGUARD_TOOLS_VERSION = PACKAGE_VERSION
-WIREGUARD_TOOLS_SITE = package/wireguard-tools
+WIREGUARD_TOOLS_SITE = $(GITHUB_WORKSPACE)/buildroot-2017.11.1/package/wireguard-tools
 WIREGUARD_TOOLS_SITE_METHOD = file
 WIREGUARD_TOOLS_SOURCE = wireguard-tools-$(WIREGUARD_TOOLS_VERSION).tar
 WIREGUARD_TOOLS_LICENSE = GPL-2.0

@@ -5,7 +5,7 @@
 ################################################################################
 
 WIREGUARD_LINUX_COMPAT_VERSION = PACKAGE_VERSION
-WIREGUARD_LINUX_COMPAT_SITE = $(GITHUB_WORKSPACE)/buildroot-2017.11.1/package/wireguard-linux-compat
+WIREGUARD_LINUX_COMPAT_SITE = $(TOPDIR)/package/wireguard-linux-compat
 WIREGUARD_LINUX_COMPAT_SITE_METHOD = file
 WIREGUARD_LINUX_COMPAT_SOURCE = wireguard-linux-compat-$(WIREGUARD_LINUX_COMPAT_VERSION).tar
 WIREGUARD_LINUX_COMPAT_LICENSE = GPL-2.0

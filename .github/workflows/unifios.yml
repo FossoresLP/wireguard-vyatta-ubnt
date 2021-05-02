@@ -68,8 +68,6 @@ jobs:
         kernel: [-v1.9.2.3432-3f1425e, -v1.9.3.3438-50c9676, -v0.5.0-2.3464-3238f5d, -v1.9.0-1.3475-4851b2b]
     steps:
       - uses: actions/checkout@v2
-        with:
-          lfs: true
       - name: Restore buildroot
         uses: actions/download-artifact@v2
         with:
@@ -95,8 +93,6 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
-        with:
-          lfs: true
       - name: Restore buildroot
         uses: actions/download-artifact@v2
         with:

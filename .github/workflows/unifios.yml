@@ -6,9 +6,10 @@ on:
       - "master"
       - "udm-support"
   pull_request:
+  workflow_dispatch:
 
 env:
-  MODULE_VERSION: "1.0.20210424"
+  MODULE_VERSION: "1.0.20210606"
   TOOLS_VERSION: "1.0.20210424"
 
 jobs:
@@ -20,11 +21,6 @@ jobs:
         run: |
           curl -o buildroot.tar.bz2 https://buildroot.org/downloads/buildroot-2017.11.1.tar.bz2
           tar -xf buildroot.tar.bz2
-      - name: Prepare buildroot-2017.11.1
-        run: |
-          cp unifios/buildroot-config.txt buildroot-2017.11.1/.config
-          cp unifios/UDM-config.txt buildroot-2017.11.1/.
-          cp unifios/kernel-versions.txt buildroot-2017.11.1/.
       - name: Download WireGuard module source
         run: |
           curl -L -o wireguard-linux-compat-$MODULE_VERSION.tar.xz https://git.zx2c4.com/wireguard-linux-compat/snapshot/wireguard-linux-compat-$MODULE_VERSION.tar.xz
@@ -50,6 +46,8 @@ jobs:
       - name: Patches
         run: |
           patch -p0 <unifios/patches/wireguard-packages.patch
+          patch -p0 <unifios/patches/openresolv-package.patch
+          patch -d buildroot-2017.11.1 -p1 <unifios/patches/add-kernel-4-19.patch
           cp unifios/patches/0001-m4-glibc-change-work-around.patch buildroot-2017.11.1/package/m4
           cp unifios/patches/0001-bison-glibc-change-work-around.patch buildroot-2017.11.1/package/bison
           cp unifios/patches/944-mpc-relative-literal-loads-logic-in-aarch64_classify_symbol.patch buildroot-2017.11.1/package/gcc/6.4.0
@@ -65,7 +63,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        kernel: [-v1.9.2.3432-3f1425e, -v1.9.3.3438-50c9676, -v0.5.0-2.3464-3238f5d, -v1.9.0-1.3475-4851b2b]
+        base: [1.9.0-10, 1.10.0-8, 1.10.0-12]
     steps:
       - uses: actions/checkout@v2
       - name: Restore buildroot
@@ -76,13 +74,21 @@ jobs:
         run: tar -xf buildroot.tar
       - name: Build wireguard module
         run: |
-          mkdir modules
+          mkdir -p modules
+          cp unifios/udm-${{ matrix.base }}/buildroot-config.txt buildroot-2017.11.1/.config
+          cp unifios/udm-${{ matrix.base }}/UDM-config.txt buildroot-2017.11.1/UDM-config.txt
+          versions="$(cat unifios/udm-${{ matrix.base }}/versions.txt)"
+          prefix="$(cat unifios/udm-${{ matrix.base }}/prefix.txt)"
           cd buildroot-2017.11.1
-          make wireguard-linux-compat-dirclean
-          sed -i -e '/CONFIG_LOCALVERSION=/s/.*/CONFIG_LOCALVERSION="'${{ matrix.kernel }}'"/' UDM-config.txt
-          make wireguard-linux-compat-rebuild -j$(nproc)
-          cp output/build/wireguard-linux-compat-$MODULE_VERSION/src/wireguard.ko ../modules/wireguard-4.1.37${{ matrix.kernel }}.ko
-          cp output/build/linux-custom/net/ipv4/netfilter/iptable_raw.ko ../modules/iptable_raw-4.1.37${{ matrix.kernel }}.ko
+          for ver in $versions; do
+            echo "Building version $ver"
+            make wireguard-linux-compat-dirclean
+            sed -i -e '/CONFIG_LOCALVERSION=/s/.*/CONFIG_LOCALVERSION="'$ver'"/' UDM-config.txt
+            make wireguard-linux-compat-rebuild -j$(nproc)
+            cp output/build/wireguard-linux-compat-$MODULE_VERSION/src/wireguard.ko ../modules/wireguard-${prefix}${ver}.ko
+            cp output/build/linux-custom/net/ipv4/netfilter/iptable_raw.ko ../modules/iptable_raw-${prefix}${ver}.ko
+            cp output/build/linux-custom/net/ipv6/netfilter/ip6table_raw.ko ../modules/ip6table_raw-${prefix}${ver}.ko
+          done
       - name: Store modules
         uses: actions/upload-artifact@v2
         with:
@@ -91,6 +97,8 @@ jobs:
   build-tools:
     needs: [prepare-buildroot]
     runs-on: ubuntu-20.04
+    env:
+      BASE: 1.9.0-10
     steps:
       - uses: actions/checkout@v2
       - name: Restore buildroot
@@ -99,37 +107,39 @@ jobs:
           name: buildroot
       - name: Extract buildroot
         run: tar -xf buildroot.tar
+      - name: Configure buildroot
+        run: |
+          cp unifios/udm-${{ env.BASE }}/buildroot-config.txt buildroot-2017.11.1/.config
+          cp unifios/udm-${{ env.BASE }}/UDM-config.txt buildroot-2017.11.1/UDM-config.txt
       - name: Build WireGuard tools
         run: cd buildroot-2017.11.1 && make wireguard-tools-rebuild # -> output/target/usr/bin/wg
       - name: Build bash
         run: cd buildroot-2017.11.1 && make bash-rebuild # -> output/target/bin/bash
+      - name: Build resolvconf
+        run: cd buildroot-2017.11.1 && make openresolv-rebuild # -> output/target/sbin/resolvconf
       - name: Build qrencode
         run: cd buildroot-2017.11.1 && make libqrencode-rebuild # -> output/target/usr/bin/qrencode
-      - name: Build htop
-        run: cd buildroot-2017.11.1 && make htop-rebuild # -> output/target/usr/bin/htop
-      - name: Build iftop
-        run: cd buildroot-2017.11.1 && make iftop-rebuild # -> output/target/usr/sbin/iftop
       - name: Collect tools
         run: |
-          mkdir usr usr/bin usr/sbin
-          cp buildroot-2017.11.1/output/target/usr/bin/wg usr/bin
-          cp buildroot-2017.11.1/output/target/bin/bash usr/bin
-          cp buildroot-2017.11.1/output/target/usr/bin/qrencode usr/bin
-          cp buildroot-2017.11.1/output/target/usr/bin/htop usr/bin
-          cp buildroot-2017.11.1/output/target/usr/sbin/iftop usr/sbin
+          mkdir -p tools/usr tools/usr/bin tools/sbin tools/etc
+          cp buildroot-2017.11.1/output/target/usr/bin/wg tools/usr/bin
+          cp buildroot-2017.11.1/output/target/bin/bash tools/usr/bin
+          cp buildroot-2017.11.1/output/target/usr/bin/qrencode tools/usr/bin
+          cp buildroot-2017.11.1/output/target/sbin/resolvconf tools/sbin
+          cp buildroot-2017.11.1/output/target/etc/resolvconf.conf tools/etc
+          cp buildroot-2017.11.1/output/build/wireguard-tools-$TOOLS_VERSION/src/wg-quick/linux.bash tools/usr/bin/wg-quick
       - name: Store tools
         uses: actions/upload-artifact@v2
         with:
           name: tools
-          path: usr
-
+          path: tools
   package:
-    needs: [build-modules, build-tools]
+    needs: [build-tools, build-modules]
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - name: Prepare
-        run: mkdir package package/usr
+        run: mkdir package
       - name: Restore modules
         uses: actions/download-artifact@v2
         with:
@@ -139,15 +149,13 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: tools
-          path: package/usr
+          path: package
       - name: Add setup
         run: cp unifios/setup_wireguard.sh package/
-      - name: Add wg-quick
-        run: curl -o package/usr/bin/wg-quick https://git.zx2c4.com/wireguard-tools/plain/src/wg-quick/linux.bash
       - name: Make binaries executable
-        run: chmod +x package/usr/bin/* && chmod +x package/usr/sbin/*
+        run: chmod +x package/usr/bin/* package/sbin/*
       - name: Package
-        run: tar -czf UnifiOS-$MODULE_VERSION.tar.gz package/
+        run: tar -C package -czf UnifiOS-$MODULE_VERSION.tar.gz ./
       - name: Store package
         uses: actions/upload-artifact@v2
         with:

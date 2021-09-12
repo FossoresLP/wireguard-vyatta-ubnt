@@ -289,7 +289,7 @@ jobs:
           name: buildroot
           path: buildroot.tar
   udm-build-modules:
-    needs: [prepare-buildroot]
+    needs: [udm-prepare-buildroot]
     runs-on: ubuntu-20.04
     strategy:
       matrix:
@@ -325,7 +325,7 @@ jobs:
           name: modules
           path: modules
   udm-build-tools:
-    needs: [prepare-buildroot]
+    needs: [udm-prepare-buildroot]
     runs-on: ubuntu-20.04
     env:
       BASE: 1.9.0-10
@@ -364,7 +364,7 @@ jobs:
           name: tools
           path: tools
   udm-package:
-    needs: [build-tools, build-modules]
+    needs: [udm-build-tools, udm-build-modules]
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
